@@ -6,6 +6,7 @@ import type {
   AnswerResponse,
   SessionResponse,
   ProfileData,
+  Question,
   RolesResponse,
 } from '@/types';
 
@@ -78,7 +79,7 @@ function handleApiError(status: number): never {
     throw new Error('Session expired. Please reopen the Mini App.');
   }
   if (status === 429) {
-    throw new Error('Daily limit reached. Try again tomorrow.');
+    throw new Error('Monthly limit reached. Upgrade to Pro for unlimited access — /plan');
   }
   if (status >= 500) {
     throw new Error('Server error. Please try again later.');
@@ -167,6 +168,22 @@ export async function getRoles(): Promise<RolesResponse> {
     const res = await fetchWithRetry(`${BASE_URL}/api/roles`, {
       method: 'GET',
     });
+    if (!res.ok) handleApiError(res.status);
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error('Connection lost. Check your internet.');
+  }
+}
+
+export async function getNextQuestion(
+  sessionId: number
+): Promise<{ question: Question; question_number: number }> {
+  try {
+    const res = await fetchWithRetry(
+      `${BASE_URL}/api/interview/${sessionId}/next-question`,
+      { method: 'GET' }
+    );
     if (!res.ok) handleApiError(res.status);
     return res.json();
   } catch (err) {

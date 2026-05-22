@@ -254,7 +254,7 @@ export default function SummaryView() {
       {/* Action buttons */}
       <div className="space-y-3 mt-auto">
         <button
-          onClick={() => router.push(`/interview?session=${sessionId}`)}
+          onClick={() => router.push(`/interview?session=${sessionId}&q=${answeredCount + 1}`)}
           className="w-full py-4 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95"
           style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
         >

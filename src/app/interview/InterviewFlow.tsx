@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Question, Evaluation, AnswerItem } from '@/types';
-import { submitAnswer } from '@/lib/api';
+import { getNextQuestion, submitAnswer } from '@/lib/api';
 import { getTheme } from '@/lib/telegram';
 import ProgressBar from '@/components/ProgressBar';
 import QuestionCard from '@/components/QuestionCard';
@@ -40,10 +40,26 @@ export default function InterviewFlow() {
     if (stored) {
       try {
         setQuestion(JSON.parse(stored));
+        return;
       } catch {
         // ignore
       }
     }
+    // Not in cache — fetch from API (resuming incomplete session)
+    setLoading(true);
+    getNextQuestion(sessionId)
+      .then((res) => {
+        setQuestion(res.question);
+        setQuestionNumber(res.question_number);
+        sessionStorage.setItem(
+          `interview_${sessionId}_q${res.question_number}`,
+          JSON.stringify(res.question)
+        );
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Could not load question. Please try again.');
+      })
+      .finally(() => setLoading(false));
   }, [sessionId, initialQ, router]);
 
   const handleSubmitAnswer = useCallback(
@@ -110,7 +126,7 @@ export default function InterviewFlow() {
 
   if (!sessionId) return null;
 
-  if (!question) {
+  if (!question && loading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -120,6 +136,26 @@ export default function InterviewFlow() {
       </div>
     );
   }
+
+  if (!question && error) {
+    return (
+      <div
+        className="min-h-screen flex flex-col items-center justify-center p-6 gap-4"
+        style={{ backgroundColor: theme.bg_color, color: theme.text_color }}
+      >
+        <p className="text-sm text-center" style={{ color: '#ef4444' }}>{error}</p>
+        <button
+          onClick={() => router.push('/profile')}
+          className="px-6 py-3 rounded-2xl font-medium text-sm"
+          style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
+        >
+          Go to Profile
+        </button>
+      </div>
+    );
+  }
+
+  if (!question) return null;
 
   return (
     <div

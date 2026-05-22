@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Evaluation } from '@/types';
 import { getTheme } from '@/lib/telegram';
 
@@ -17,6 +19,8 @@ function scoreColor(score: number): string {
 
 export default function EvaluationCard({ evaluation, isLast, onNext }: Props) {
   const theme = getTheme();
+  const router = useRouter();
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const color = scoreColor(evaluation.score);
 
   return (
@@ -36,7 +40,7 @@ export default function EvaluationCard({ evaluation, isLast, onNext }: Props) {
       </div>
 
       <div
-        className="p-4 rounded-2xl text-sm leading-relaxed"
+        className="p-4 rounded-2xl text-sm leading-relaxed select-text"
         style={{ backgroundColor: theme.secondary_bg_color }}
       >
         {evaluation.feedback}
@@ -76,7 +80,7 @@ export default function EvaluationCard({ evaluation, isLast, onNext }: Props) {
 
       {evaluation.tip && (
         <div
-          className="p-3 rounded-xl text-sm"
+          className="p-3 rounded-xl text-sm select-text"
           style={{ backgroundColor: `${theme.button_color}15`, borderLeft: `3px solid ${theme.button_color}` }}
         >
           <span className="font-semibold">Tip: </span>
@@ -84,16 +88,59 @@ export default function EvaluationCard({ evaluation, isLast, onNext }: Props) {
         </div>
       )}
 
-      <button
-        onClick={onNext}
-        className="w-full py-4 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95"
-        style={{
-          backgroundColor: theme.button_color,
-          color: theme.button_text_color,
-        }}
-      >
-        {isLast ? 'View Summary' : 'Next Question'}
-      </button>
+      {/* Confirmation dialog */}
+      {showExitConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-6"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <div
+            className="p-6 rounded-3xl w-full max-w-xs text-center"
+            style={{ backgroundColor: theme.secondary_bg_color, color: theme.text_color }}
+          >
+            <p className="text-lg font-bold mb-2">Exit Interview?</p>
+            <p className="text-sm mb-6" style={{ color: theme.hint_color }}>
+              You can continue this interview later from your profile.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="flex-1 py-3 rounded-2xl font-medium text-sm transition-all active:scale-95"
+                style={{ backgroundColor: `${theme.hint_color}33`, color: theme.text_color }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => router.push('/profile')}
+                className="flex-1 py-3 rounded-2xl font-medium text-sm transition-all active:scale-95"
+                style={{ backgroundColor: '#ef4444', color: 'white' }}
+              >
+                Exit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowExitConfirm(true)}
+          className="flex-1 py-4 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95"
+          style={{ backgroundColor: '#ef4444', color: 'white' }}
+        >
+          Exit
+        </button>
+        <button
+          onClick={onNext}
+          className="flex-[2] py-4 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95"
+          style={{
+            backgroundColor: theme.button_color,
+            color: theme.button_text_color,
+          }}
+        >
+          {isLast ? 'View Summary' : 'Next Question'}
+        </button>
+      </div>
     </div>
   );
 }
