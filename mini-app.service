@@ -1,0 +1,16 @@
+[Unit]
+Description=Interview Mini App (Next.js Production)
+After=network.target
+
+[Service]
+Type=simple
+User=hermes
+WorkingDirectory=/home/hermes/projects/interview-mini-app
+ExecStart=/usr/bin/npx next start -p 3000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
