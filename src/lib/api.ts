@@ -8,6 +8,9 @@ import type {
   ProfileData,
   Question,
   RolesResponse,
+  ResumeAnalysis,
+  TariffPlanInfo,
+  CompanyInfo,
 } from '@/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';  // empty = same origin (rewritten via next.config.ts)
@@ -103,12 +106,18 @@ export async function auth(): Promise<AuthResponse> {
 
 export async function startInterview(
   role: string,
-  level: string
+  level: string,
+  companyId?: string,
+  mode: string = 'technical'
 ): Promise<StartInterviewResponse> {
   try {
+    const body: Record<string, string> = { role, level, mode };
+    if (companyId && companyId !== 'general') {
+      body.company_id = companyId;
+    }
     const res = await fetchWithRetry(`${BASE_URL}/api/interview/start`, {
       method: 'POST',
-      body: JSON.stringify({ role, level }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) handleApiError(res.status);
     return res.json();
@@ -121,12 +130,15 @@ export async function startInterview(
 export async function submitAnswer(
   sessionId: number,
   answer: string,
-  questionText?: string
+  questionText?: string,
+  timeTakenSeconds?: number,
 ): Promise<AnswerResponse> {
   try {
+    const body: Record<string, any> = { session_id: sessionId, answer, question_text: questionText };
+    if (timeTakenSeconds !== undefined) body.time_taken_seconds = timeTakenSeconds;
     const res = await fetchWithRetry(`${BASE_URL}/api/interview/answer`, {
       method: 'POST',
-      body: JSON.stringify({ session_id: sessionId, answer, question_text: questionText }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) handleApiError(res.status);
     return res.json();
@@ -135,6 +147,38 @@ export async function submitAnswer(
     throw new Error('Connection lost. Check your internet.');
   }
 }
+
+
+export async function voiceAnswer(
+  sessionId: number,
+  questionText: string,
+  audioBlob: Blob,
+  timeTakenSeconds?: number,
+): Promise<AnswerResponse> {
+  try {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'voice.webm');
+    formData.append('session_id', String(sessionId));
+    formData.append('question_text', questionText);
+    if (timeTakenSeconds !== undefined) {
+      formData.append('time_taken_seconds', String(timeTakenSeconds));
+    }
+
+    const res = await fetchWithRetry(`${BASE_URL}/api/interview/voice-answer`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `Voice answer failed (${res.status})`);
+    }
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error('Connection lost. Check your internet.');
+  }
+}
+
 
 export async function getSession(sessionId: number): Promise<SessionResponse> {
   try {
@@ -176,6 +220,19 @@ export async function getRoles(): Promise<RolesResponse> {
   }
 }
 
+export async function getCompanies(): Promise<{ companies: CompanyInfo[] }> {
+  try {
+    const res = await fetchWithRetry(`${BASE_URL}/api/companies`, {
+      method: 'GET',
+    });
+    if (!res.ok) handleApiError(res.status);
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error('Connection lost. Check your internet.');
+  }
+}
+
 export async function getNextQuestion(
   sessionId: number
 ): Promise<{ question: Question; question_number: number }> {
@@ -190,4 +247,188 @@ export async function getNextQuestion(
     if (err instanceof Error) throw err;
     throw new Error('Connection lost. Check your internet.');
   }
+}
+
+export async function analyzeResume(pdfText: string): Promise<ResumeAnalysis> {
+  try {
+    const res = await fetchWithRetry(`${BASE_URL}/api/resume/analyze`, {
+      method: 'POST',
+      body: JSON.stringify({ pdf_text: pdfText }),
+    });
+    if (!res.ok) handleApiError(res.status);
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error('Connection lost. Check your internet.');
+  }
+}
+
+export async function uploadResume(file: File): Promise<ResumeAnalysis> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (initData) {
+      headers['X-Telegram-Init-Data'] = initData;
+    }
+    if (!initData && currentUserId) {
+      headers['X-User-ID'] = String(currentUserId);
+    }
+
+    const res = await fetchWithTimeout(`${BASE_URL}/api/resume/upload`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    });
+
+    if (res.status === 400) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.detail || 'Could not parse this PDF. It may be a scanned/image-only document.');
+    }
+    if (!res.ok) handleApiError(res.status);
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error('Connection lost. Check your internet.');
+  }
+}
+
+// ── Text-to-Speech ──────────────────────────────────────────────────────────
+
+export async function textToSpeech(text: string): Promise<string | null> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+    const res = await fetchWithRetry(`${BASE_URL}/api/tts`, {
+      method: 'POST',
+      body: JSON.stringify({ text: text.slice(0, 2000) }),
+      headers,
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.audio_base64 ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Speech-to-Text ──────────────────────────────────────────────────────────
+
+export async function transcribeAudio(audioBlob: Blob): Promise<string | null> {
+  try {
+    const formData = new FormData();
+    // Determine extension from blob type
+    const ext = audioBlob.type.includes('webm') ? '.webm' : '.ogg';
+    formData.append('file', audioBlob, `recording${ext}`);
+
+    const headers: Record<string, string> = {};
+    if (initData) headers['X-Telegram-Init-Data'] = initData;
+    if (!initData && currentUserId) {
+      headers['X-User-ID'] = String(currentUserId);
+    }
+
+    const res = await fetchWithTimeout(`${BASE_URL}/api/transcribe`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.text || null;
+  } catch {
+    return null;
+  }
+}
+
+// ── User Settings ───────────────────────────────────────────────────────────
+
+export interface SettingsData {
+  language: string;
+  voice: string;
+  ui_language?: string;
+}
+
+export async function getSettings(): Promise<SettingsData> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/settings`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) throw new Error('Failed to fetch settings');
+  return res.json();
+}
+
+export async function updateSettings(language: string, voice: string, uiLanguage?: string): Promise<SettingsData> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const body: Record<string, string> = { language, voice };
+  if (uiLanguage !== undefined) {
+    body.ui_language = uiLanguage;
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/settings`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+    headers,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to save settings');
+  }
+  return res.json();
+}
+
+// ── Tariff Plans ──────────────────────────────────────────────────────────────
+
+export async function getPlans(): Promise<TariffPlanInfo[]> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/plans`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) throw new Error('Failed to fetch plans');
+  return res.json();
+}
+
+// ── Telegram Stars Invoice ─────────────────────────────────────────────────────
+
+export async function createStarsInvoice(planName: string): Promise<{ invoice_url: string; star_price: number; plan: string }> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/stars/invoice`, {
+    method: 'POST',
+    body: JSON.stringify({ plan_name: planName }),
+    headers,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create invoice');
+  }
+  return res.json();
 }

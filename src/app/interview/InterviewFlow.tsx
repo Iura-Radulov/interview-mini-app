@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Question, Evaluation, AnswerItem } from '@/types';
-import { getNextQuestion, submitAnswer } from '@/lib/api';
+import type { Question, Evaluation, AnswerItem, InterviewMode } from '@/types';
+import { getNextQuestion, submitAnswer, voiceAnswer } from '@/lib/api';
 import { getTheme } from '@/lib/telegram';
+import { useTranslation } from '@/lib/i18n';
 import ProgressBar from '@/components/ProgressBar';
 import QuestionCard from '@/components/QuestionCard';
 import EvaluationCard from '@/components/EvaluationCard';
@@ -15,6 +16,7 @@ const TOTAL_QUESTIONS = 5;
 type Phase = 'question' | 'evaluation';
 
 export default function InterviewFlow() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const theme = getTheme();
@@ -29,6 +31,30 @@ export default function InterviewFlow() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<AnswerItem[]>([]);
+  const [mode, setMode] = useState<InterviewMode>('technical');
+
+  // Detect mode from cached question or session-level storage
+  useEffect(() => {
+    const modeKey = `interview_${sessionId}_mode`;
+    const storedMode = sessionStorage.getItem(modeKey);
+    if (storedMode === 'technical' || storedMode === 'behavioral') {
+      setMode(storedMode);
+      return;
+    }
+    // Fallback: check question-level mode (legacy)
+    const key = `interview_${sessionId}_q${initialQ}`;
+    const stored = sessionStorage.getItem(key);
+    if (stored) {
+      try {
+        const q = JSON.parse(stored);
+        if (q && q.mode) {
+          setMode(q.mode);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [sessionId, initialQ]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -57,18 +83,18 @@ export default function InterviewFlow() {
         );
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Could not load question. Please try again.');
+        setError(err instanceof Error ? err.message : t('interview.load_error'));
       })
       .finally(() => setLoading(false));
   }, [sessionId, initialQ, router]);
 
   const handleSubmitAnswer = useCallback(
-    async (answer: string) => {
+    async (answer: string, timeTakenSeconds?: number) => {
       if (!question || !sessionId) return;
       setLoading(true);
       setError(null);
       try {
-        const result = await submitAnswer(sessionId, answer, question.question);
+        const result = await submitAnswer(sessionId, answer, question.question, timeTakenSeconds);
         const answerItem: AnswerItem = {
           question,
           answer,
@@ -92,7 +118,46 @@ export default function InterviewFlow() {
           );
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to submit answer.');
+        setError(err instanceof Error ? err.message : t('interview.submit_error'));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [question, sessionId, questionNumber, answers]
+  );
+
+  const handleVoiceSubmit = useCallback(
+    async (audioBlob: Blob, timeTakenSeconds?: number) => {
+      if (!question || !sessionId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await voiceAnswer(sessionId, question.question, audioBlob, timeTakenSeconds);
+        const transcribed = result.transcribed || '…';
+        const answerItem: AnswerItem = {
+          question,
+          answer: transcribed,
+          evaluation: result.evaluation,
+          question_number: questionNumber,
+        };
+        const updatedAnswers = [...answers, answerItem];
+        setAnswers(updatedAnswers);
+        setEvaluation(result.evaluation);
+        setPhase('evaluation');
+
+        if (result.done) {
+          sessionStorage.setItem(
+            `summary_${sessionId}`,
+            JSON.stringify({ summary: result.summary, answers: updatedAnswers })
+          );
+        } else if (result.next_question && result.question_number) {
+          sessionStorage.setItem(
+            `interview_${sessionId}_q${result.question_number}`,
+            JSON.stringify(result.next_question)
+          );
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('interview.submit_error'));
       } finally {
         setLoading(false);
       }
@@ -121,7 +186,7 @@ export default function InterviewFlow() {
         // fallback
       }
     }
-    setError('Could not load next question. Please try again.');
+    setError(t('interview.next_error'));
   }
 
   if (!sessionId) return null;
@@ -149,7 +214,7 @@ export default function InterviewFlow() {
           className="px-6 py-3 rounded-2xl font-medium text-sm"
           style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
         >
-          Go to Profile
+          {t('interview.go_profile')}
         </button>
       </div>
     );
@@ -168,6 +233,7 @@ export default function InterviewFlow() {
         buttonColor={theme.button_color}
         textColor={theme.text_color}
         hintColor={theme.hint_color}
+        mode={mode}
       />
 
       {error && (
@@ -184,7 +250,9 @@ export default function InterviewFlow() {
           <QuestionCard
             question={question}
             onSubmit={handleSubmitAnswer}
+            onVoiceSubmit={handleVoiceSubmit}
             loading={loading}
+            mode={mode}
           />
         )}
         {phase === 'evaluation' && evaluation && (
@@ -192,6 +260,7 @@ export default function InterviewFlow() {
             evaluation={evaluation}
             isLast={questionNumber >= TOTAL_QUESTIONS}
             onNext={handleNext}
+            mode={mode}
           />
         )}
       </div>

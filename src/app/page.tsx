@@ -1,5 +1,7 @@
-import StartScreen from '@/components/StartScreen';
+'use client';
 
-export default function Home() {
-  return <StartScreen />;
+import Dashboard from '@/components/Dashboard';
+
+export default function HomePage() {
+  return <Dashboard />;
 }

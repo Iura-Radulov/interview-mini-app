@@ -6,6 +6,7 @@ interface Props {
   buttonColor?: string;
   textColor?: string;
   hintColor?: string;
+  mode?: 'technical' | 'behavioral';
 }
 
 export default function ProgressBar({
@@ -14,13 +15,14 @@ export default function ProgressBar({
   buttonColor = '#2678b6',
   textColor = '#000000',
   hintColor = '#999999',
+  mode = 'technical',
 }: Props) {
   const pct = Math.round((current / total) * 100);
 
   return (
     <div className="w-full px-4 py-3">
       <div className="flex justify-between mb-1 text-sm font-medium" style={{ color: textColor }}>
-        <span>Question {current} of {total}</span>
+        <span>{mode === 'behavioral' ? `🎭 Behavioral — Question ${current} of ${total}` : `💻 Technical — Question ${current} of ${total}`}</span>
         <span style={{ color: hintColor }}>{pct}%</span>
       </div>
       <div

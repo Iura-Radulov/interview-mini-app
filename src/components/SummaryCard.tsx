@@ -3,13 +3,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { SessionSummary, AnswerItem } from '@/types';
+import type { SessionSummary, AnswerItem, InterviewMode } from '@/types';
 import { getTheme } from '@/lib/telegram';
+import { useTranslation } from '@/lib/i18n';
 
 interface Props {
   summary: SessionSummary;
   answers: AnswerItem[];
   overallScore: number;
+  mode?: InterviewMode;
 }
 
 function scoreColor(score: number): string {
@@ -45,6 +47,7 @@ function AnimatedScore({ target }: { target: number }) {
 
 function AnswerBreakdown({ item }: { item: AnswerItem }) {
   const theme = getTheme();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const color = scoreColor(item.evaluation.score);
 
@@ -72,13 +75,13 @@ function AnswerBreakdown({ item }: { item: AnswerItem }) {
         <div className="px-4 pb-4 space-y-3 border-t" style={{ borderColor: `${theme.hint_color}22` }}>
           <div className="pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.hint_color }}>
-              Your Answer
+              {t('summary_card.your_answer')}
             </p>
             <p className="text-sm" style={{ color: theme.text_color }}>{item.answer}</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.hint_color }}>
-              Feedback
+              {t('summary_card.feedback')}
             </p>
             <p className="text-sm" style={{ color: theme.text_color }}>{item.evaluation.feedback}</p>
           </div>
@@ -89,6 +92,7 @@ function AnswerBreakdown({ item }: { item: AnswerItem }) {
 }
 
 export default function SummaryCard({ summary, answers, overallScore }: Props) {
+  const { t } = useTranslation();
   const theme = getTheme();
   const router = useRouter();
   const color = scoreColor(overallScore);
@@ -106,7 +110,7 @@ export default function SummaryCard({ summary, answers, overallScore }: Props) {
       className="min-h-screen flex flex-col px-4 py-6 max-w-sm mx-auto"
       style={{ backgroundColor: theme.bg_color, color: theme.text_color }}
     >
-      <h1 className="text-xl font-bold text-center mb-6">Session Summary</h1>
+      <h1 className="text-xl font-bold text-center mb-6">{t('summary_card.title')}</h1>
 
       <div className="flex flex-col items-center mb-6">
         <div
@@ -132,10 +136,83 @@ export default function SummaryCard({ summary, answers, overallScore }: Props) {
         </div>
       )}
 
+      {/* STAR breakdown — behavioral mode */}
+      {summary.star_breakdown && (
+        <div
+          className="p-4 rounded-2xl mb-4"
+          style={{ backgroundColor: theme.secondary_bg_color }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#8b5cf6' }}>
+            ⭐ STAR Overall: {summary.star_breakdown.overall_star_score}/10
+          </p>
+          <div className="space-y-2">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>S — Situation</span>
+                <span style={{ color: scoreColor(summary.star_breakdown.situation) }}>{summary.star_breakdown.situation}/10</span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, backgroundColor: '#e5e7eb' }}>
+                <div className="h-full rounded-full" style={{ width: `${(summary.star_breakdown.situation / 10) * 100}%`, backgroundColor: scoreColor(summary.star_breakdown.situation) }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>T — Task</span>
+                <span style={{ color: scoreColor(summary.star_breakdown.task) }}>{summary.star_breakdown.task}/10</span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, backgroundColor: '#e5e7eb' }}>
+                <div className="h-full rounded-full" style={{ width: `${(summary.star_breakdown.task / 10) * 100}%`, backgroundColor: scoreColor(summary.star_breakdown.task) }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>A — Action</span>
+                <span style={{ color: scoreColor(summary.star_breakdown.action) }}>{summary.star_breakdown.action}/10</span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, backgroundColor: '#e5e7eb' }}>
+                <div className="h-full rounded-full" style={{ width: `${(summary.star_breakdown.action / 10) * 100}%`, backgroundColor: scoreColor(summary.star_breakdown.action) }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>R — Result</span>
+                <span style={{ color: scoreColor(summary.star_breakdown.result) }}>{summary.star_breakdown.result}/10</span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, backgroundColor: '#e5e7eb' }}>
+                <div className="h-full rounded-full" style={{ width: `${(summary.star_breakdown.result / 10) * 100}%`, backgroundColor: scoreColor(summary.star_breakdown.result) }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Competency scores — behavioral mode */}
+      {summary.competency_scores && Object.keys(summary.competency_scores).length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#8b5cf6' }}>
+            🎯 Key Competencies
+          </p>
+          <div className="space-y-2">
+            {Object.entries(summary.competency_scores).map(([comp, score]) => (
+              <div
+                key={comp}
+                className="p-3 rounded-xl flex items-center justify-between"
+                style={{ backgroundColor: theme.secondary_bg_color }}
+              >
+                <span className="text-sm font-medium">{comp}</span>
+                <span className="font-bold text-sm" style={{ color: scoreColor(score) }}>
+                  {Math.round(score * 10) / 10}/10
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {summary.key_strengths.length > 0 && (
         <div className="mb-4">
           <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#22c55e' }}>
-            Key Strengths
+            {t('summary_card.key_strengths')}
           </p>
           <ul className="space-y-1">
             {summary.key_strengths.map((s, i) => (
@@ -151,7 +228,7 @@ export default function SummaryCard({ summary, answers, overallScore }: Props) {
       {summary.key_improvements.length > 0 && (
         <div className="mb-4">
           <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#f59e0b' }}>
-            Areas to Improve
+            {t('summary_card.areas_improve')}
           </p>
           <ul className="space-y-1">
             {summary.key_improvements.map((item, i) => (
@@ -167,7 +244,7 @@ export default function SummaryCard({ summary, answers, overallScore }: Props) {
       {summary.topics_to_study.length > 0 && (
         <div className="mb-4">
           <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: theme.button_color }}>
-            Topics to Study
+            {t('summary_card.topics_study')}
           </p>
           <div className="flex flex-wrap gap-2">
             {summary.topics_to_study.map((topic, i) => (
@@ -186,7 +263,7 @@ export default function SummaryCard({ summary, answers, overallScore }: Props) {
       {answers.length > 0 && (
         <div className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: theme.hint_color }}>
-            Question Breakdown
+            {t('summary_card.question_breakdown')}
           </p>
           <div className="space-y-2">
             {answers.map((item) => (
@@ -202,14 +279,14 @@ export default function SummaryCard({ summary, answers, overallScore }: Props) {
           className="w-full py-4 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95"
           style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
         >
-          Practice Again
+          {t('summary_card.practice_again')}
         </button>
         <Link
           href="/profile"
           className="block w-full py-3 text-center rounded-2xl text-sm font-medium"
           style={{ color: theme.button_color }}
         >
-          View Profile
+          {t('summary_card.view_profile')}
         </Link>
       </div>
     </div>

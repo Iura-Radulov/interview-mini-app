@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import TelegramProvider from '@/components/TelegramProvider';
+import { I18nProvider } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   title: 'AI Interview Practice',
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-full antialiased">
         <script src="https://telegram.org/js/telegram-web-app.js" />
         <TelegramProvider>
-          {children}
+          <I18nProvider>
+            {children}
+          </I18nProvider>
         </TelegramProvider>
       </body>
     </html>
