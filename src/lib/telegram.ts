@@ -23,6 +23,7 @@ declare global {
             id: number;
             username?: string;
             first_name?: string;
+            language_code?: string;
           };
         };
         themeParams: Partial<TelegramTheme>;
@@ -36,6 +37,7 @@ declare global {
           hideProgress: () => void;
         };
         showAlert: (message: string, callback?: () => void) => void;
+        openInvoice: (url: string, callback?: (status: string) => void) => void;
         colorScheme: 'light' | 'dark';
         version: string;
       };

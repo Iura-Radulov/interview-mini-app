@@ -2,29 +2,56 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import type { ProfileData, InterviewSession } from '@/types';
+import type { ProfileData } from '@/types';
 import { getTheme } from '@/lib/telegram';
+import { useAuth } from '@/components/TelegramProvider';
 import { getProfile } from '@/lib/api';
+import { useTranslation } from '@/lib/i18n';
 import LoadingSpinner from './LoadingSpinner';
+import Sidebar from './Sidebar';
 
-function scoreColor(score: number): string {
-  if (score >= 7) return '#22c55e';
-  if (score >= 5) return '#f59e0b';
-  return '#ef4444';
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  } catch {
-    return iso;
+function planBadgeColor(planName: string) {
+  switch (planName) {
+    case 'Pro':
+      return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e' };
+    case 'Premium':
+      return { bg: '#a855f720', text: '#a855f7', border: '#a855f7' };
+    default:
+      return { bg: '#64748b20', text: '#64748b', border: '#64748b33' };
   }
 }
 
+function getUpgradeLabel(planName: string, t: (key: string) => string): string {
+  if (planName === 'Free') return t('profile.upgrade_pro');
+  if (planName === 'Pro') return t('profile.upgrade_premium');
+  return '';
+}
+
+function getUpgradeUrl(planName: string): string {
+  if (planName === 'Free') return 'https://techinterviewai.com/tariffs?plan=pro';
+  if (planName === 'Pro') return 'https://techinterviewai.com/tariffs?plan=premium';
+  return '';
+}
+
+function getPlanFeatures(planName: string, t: (key: string) => string): string[] {
+  if (planName === 'Free') {
+    return [t('plan.feature.0'), t('plan.feature.1'), t('plan.feature.2'), t('plan.feature.3')];
+  }
+  if (planName === 'Pro') {
+    return [t('plan.pro.feature.0'), t('plan.pro.feature.1'), t('plan.pro.feature.2'), t('plan.pro.feature.3'), t('plan.pro.feature.4'), t('plan.pro.feature.5'), t('plan.pro.feature.6')];
+  }
+  if (planName === 'Premium') {
+    return [t('plan.premium.feature.0'), t('plan.premium.feature.1'), t('plan.premium.feature.2'), t('plan.premium.feature.3'), t('plan.premium.feature.4'), t('plan.premium.feature.5')];
+  }
+  return [];
+}
+
 export default function ProfileStats() {
+  const { t } = useTranslation();
   const theme = getTheme();
   const router = useRouter();
+  const { user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +59,7 @@ export default function ProfileStats() {
   useEffect(() => {
     getProfile()
       .then(setProfile)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load profile.'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('profile.failed_load')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -47,114 +74,147 @@ export default function ProfileStats() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-4">
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <p className="text-sm text-center" style={{ color: '#ef4444' }}>{error}</p>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => { setLoading(true); setError(null); getProfile().then(setProfile).catch(err => setError(err.message)).finally(() => setLoading(false)); }}
           className="px-6 py-3 rounded-2xl font-medium text-sm"
           style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
         >
-          Go Home
+          {t('profile.retry')}
         </button>
       </div>
     );
   }
 
-  if (!profile) return null;
+  const planName = profile?.plan_name || 'Free';
+  const features = getPlanFeatures(planName, t);
+  const badge = planBadgeColor(planName);
+  const upgradeLabel = getUpgradeLabel(planName, t);
+  const upgradeUrl = getUpgradeUrl(planName);
 
   return (
-    <div
-      className="min-h-screen flex flex-col px-4 py-6 max-w-sm mx-auto"
-      style={{ backgroundColor: theme.bg_color, color: theme.text_color }}
-    >
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">My Profile</h1>
-        <Link href="/" className="text-sm" style={{ color: theme.button_color }}>
-          ← Home
-        </Link>
-      </div>
+    <>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div
-          className="p-4 rounded-2xl text-center"
-          style={{ backgroundColor: theme.secondary_bg_color }}
-        >
-          <p className="text-3xl font-bold">{profile.total_sessions}</p>
-          <p className="text-xs mt-1" style={{ color: theme.hint_color }}>Sessions</p>
-        </div>
-        <div
-          className="p-4 rounded-2xl text-center"
-          style={{ backgroundColor: theme.secondary_bg_color }}
-        >
-          <p
-            className="text-3xl font-bold"
-            style={{ color: scoreColor(profile.avg_score) }}
+      <div
+        className="min-h-screen flex flex-col px-4 py-6 max-w-sm mx-auto"
+        style={{ backgroundColor: theme.bg_color, color: theme.text_color }}
+      >
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all active:scale-90"
+            style={{ backgroundColor: theme.secondary_bg_color }}
+            aria-label="Open menu"
           >
-            {profile.avg_score.toFixed(1)}
-          </p>
-          <p className="text-xs mt-1" style={{ color: theme.hint_color }}>Avg Score</p>
+            ☰
+          </button>
+          <h1 className="text-xl font-bold">{t('profile.my_profile')}</h1>
+          <button
+            onClick={() => router.push('/')}
+            className="text-sm"
+            style={{ color: theme.button_color }}
+          >
+            {t('profile.dashboard')}
+          </button>
         </div>
-      </div>
 
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: theme.hint_color }}>
-          Recent Sessions
-        </p>
-        {profile.recent_sessions.length === 0 ? (
-          <p className="text-sm text-center py-6" style={{ color: theme.hint_color }}>
-            No sessions yet. Start your first interview!
-          </p>
-        ) : (
+        {/* User info card */}
+        <div className="flex items-center gap-4 mb-6 p-4 rounded-2xl" style={{ backgroundColor: theme.secondary_bg_color }}>
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shrink-0"
+            style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
+          >
+            {user?.first_name?.[0] || 'U'}
+          </div>
+          <div>
+            <p className="text-lg font-bold">{user?.first_name || t('profile.user')}</p>
+            <p className="text-sm" style={{ color: theme.hint_color }}>
+              {profile?.total_sessions && profile.total_sessions > 0
+                ? t('profile.sessions_completed', { count: profile.total_sessions })
+                : t('profile.getting_started')}
+            </p>
+            {profile?.avg_score && profile.avg_score > 0 && (
+              <p className="text-sm mt-1" style={{ color: '#22c55e' }}>
+                {t('profile.avg_score', { score: profile.avg_score.toFixed(1) })}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Subscription block */}
+        <div
+          className="p-5 rounded-2xl mb-6 border"
+          style={{
+            backgroundColor: badge.bg,
+            borderColor: badge.border,
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.hint_color }}>
+                {t('profile.subscription')}
+              </p>
+              <p className="text-xl font-bold" style={{ color: badge.text }}>
+                {planName}
+              </p>
+            </div>
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+              style={{ backgroundColor: planName === 'Free' ? '#64748b30' : planName === 'Pro' ? '#22c55e30' : '#a855f730' }}
+            >
+              {planName === 'Free' ? '📦' : planName === 'Pro' ? '⚡' : '👑'}
+            </div>
+          </div>
+
           <div className="space-y-2">
-            {profile.recent_sessions.map((session, idx) => (
-              <SessionRow key={session?.id ?? `session-${idx}`} session={session} theme={theme} />
+            {features.map((feature, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span className="text-sm" style={{ color: badge.text }}>✓</span>
+                <span className="text-sm" style={{ color: theme.text_color }}>
+                  {feature}
+                </span>
+              </div>
             ))}
           </div>
-        )}
-      </div>
 
-      <div className="mt-auto">
-        <button
-          onClick={() => router.push('/')}
-          className="w-full py-4 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95"
-          style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
-        >
-          Start New Interview
-        </button>
-      </div>
-    </div>
-  );
-}
+          {upgradeLabel && (
+            <button
+              onClick={() => window.open(upgradeUrl, '_blank')}
+              className="w-full mt-4 py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
+              style={{ backgroundColor: badge.text, color: '#ffffff' }}
+            >
+              {upgradeLabel}
+            </button>
+          )}
+        </div>
 
-function SessionRow({
-  session,
-  theme,
-}: {
-  session: InterviewSession;
-  theme: ReturnType<typeof getTheme>;
-}) {
-  const router = useRouter();
-  const color = session.total_score != null ? scoreColor(session.total_score) : theme.hint_color;
+        {/* Spacer */}
+        <div className="flex-1" />
 
-  return (
-    <button
-      onClick={() => router.push(`/summary?session=${session.id}`)}
-      className="w-full flex items-center justify-between p-4 rounded-2xl text-left transition-all active:scale-98"
-      style={{ backgroundColor: theme.secondary_bg_color }}
-    >
-      <div>
-        <p className="text-sm font-medium" style={{ color: theme.text_color }}>
-          {session.role} · {session.experience_level}
-        </p>
-        <p className="text-xs mt-0.5" style={{ color: theme.hint_color }}>
-          {formatDate(session.started_at)}
-          {!session.completed && ' · In progress'}
-        </p>
+        {/* Bottom buttons */}
+        <div className="space-y-3">
+          <button
+            onClick={() => router.push('/setup')}
+            className="w-full py-4 rounded-2xl font-bold text-base transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+            style={{
+              backgroundColor: theme.button_color,
+              color: theme.button_text_color,
+            }}
+          >
+            {t('profile.start_new')}
+          </button>
+          <button
+            onClick={() => router.push('/history')}
+            className="w-full py-3 rounded-2xl text-sm font-medium transition-all active:scale-95"
+            style={{ backgroundColor: theme.secondary_bg_color, color: theme.text_color }}
+          >
+            {t('profile.view_history')}
+          </button>
+        </div>
       </div>
-      {session.total_score != null && (
-        <span className="font-bold text-base" style={{ color }}>
-          {session.total_score.toFixed(1)}
-        </span>
-      )}
-    </button>
+    </>
   );
 }

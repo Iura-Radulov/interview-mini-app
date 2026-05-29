@@ -6,6 +6,7 @@ import Link from 'next/link';
 import type { SessionSummary, AnswerItem, InterviewSession } from '@/types';
 import { getSession } from '@/lib/api';
 import { getTheme } from '@/lib/telegram';
+import { useTranslation } from '@/lib/i18n';
 import SummaryCard from '@/components/SummaryCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -56,6 +57,7 @@ interface SessionDetailData {
 }
 
 export default function SummaryView() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const theme = getTheme();
@@ -80,7 +82,7 @@ export default function SummaryView() {
             ? parsed.answers.reduce((sum, a) => sum + a.evaluation.score, 0) / parsed.answers.length
             : 0;
         setData({
-          session: { id: sessionId, role: '', experience_level: '', started_at: '', completed: true },
+          session: { id: sessionId, role: '', experience_level: '', mode: 'technical' as const, started_at: '', completed: true },
           summary: parsed.summary,
           answers: parsed.answers,
           overallScore: Math.round(avg * 10) / 10,
@@ -112,7 +114,7 @@ export default function SummaryView() {
           overallScore: Math.round(avg * 10) / 10,
         });
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load session.'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('summary.failed_load')))
       .finally(() => setLoading(false));
   }, [sessionId, router]);
 
@@ -141,7 +143,7 @@ export default function SummaryView() {
           className="px-6 py-3 rounded-2xl font-medium text-sm"
           style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
         >
-          Go Home
+          {t('summary.go_home')}
         </button>
       </div>
     );
@@ -156,6 +158,7 @@ export default function SummaryView() {
         summary={data.summary}
         answers={data.answers}
         overallScore={data.overallScore}
+        mode={data.session.mode}
       />
     );
   }
@@ -170,9 +173,9 @@ export default function SummaryView() {
       style={{ backgroundColor: theme.bg_color, color: theme.text_color }}
     >
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">Interview in Progress</h1>
-        <Link href="/profile" className="text-sm" style={{ color: theme.button_color }}>
-          ← Profile
+        <h1 className="text-xl font-bold">{t('summary.in_progress')}</h1>
+        <Link href="/history" className="text-sm" style={{ color: theme.button_color }}>
+          {t('summary.history')}
         </Link>
       </div>
 
@@ -192,7 +195,7 @@ export default function SummaryView() {
       {/* Progress bar */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">Progress</span>
+          <span className="text-sm font-medium">{t('summary.progress')}</span>
           <span className="text-sm" style={{ color: theme.hint_color }}>
             {answeredCount} / {totalQuestions}
           </span>
@@ -218,7 +221,7 @@ export default function SummaryView() {
             className="text-xs font-semibold uppercase tracking-wide mb-3"
             style={{ color: theme.hint_color }}
           >
-            Questions Answered
+            {t('summary.questions_answered')}
           </p>
           <div className="space-y-2">
             {data.answers.map((item) => (
@@ -258,14 +261,14 @@ export default function SummaryView() {
           className="w-full py-4 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95"
           style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
         >
-          Continue Interview
+          {t('summary.continue')}
         </button>
         <button
           onClick={() => router.push('/')}
           className="w-full py-3 rounded-2xl text-sm font-medium transition-all active:scale-95"
           style={{ backgroundColor: theme.secondary_bg_color, color: theme.text_color }}
         >
-          Go Home
+          {t('summary.go_home')}
         </button>
       </div>
     </div>
