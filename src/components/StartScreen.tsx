@@ -65,6 +65,9 @@ export default function StartScreen() {
   const [resumeAnalysis, setResumeAnalysis] = useState<ResumeAnalysis | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [planName, setPlanName] = useState<string>('Free');
+  const [totalCompleted, setTotalCompleted] = useState<number>(0);
+  const [maxPerMonth, setMaxPerMonth] = useState<number>(2);
+  const [skills, setSkills] = useState<string>('');
 
   // Reset selections when mode changes
   useEffect(() => {
@@ -84,7 +87,11 @@ export default function StartScreen() {
       .catch(() => {});  // non-critical
     // Check user's plan for behavioral access
     getProfile()
-      .then((p) => setPlanName(p.plan_name))
+      .then((p) => {
+        setPlanName(p.plan_name);
+        setTotalCompleted(p.total_completed);
+        setMaxPerMonth(p.max_per_month);
+      })
       .catch(() => {});  // non-critical, default Free
   }, []);
 
@@ -101,7 +108,7 @@ export default function StartScreen() {
     setLoading(true);
     setError(null);
     try {
-      const result = await startInterview(role, level, companyId, mode);
+      const result = await startInterview(role, level, companyId, mode, skills || undefined);
       sessionStorage.setItem(
         `interview_${result.session_id}_q1`,
         JSON.stringify(result.question)
@@ -153,8 +160,9 @@ export default function StartScreen() {
     }
   }
 
-  const canStart = !!selectedRole && !!selectedLevel && !loading;
   const isFree = planName === 'Free';
+  const isLimitReached = isFree && totalCompleted >= maxPerMonth;
+  const canStart = !!selectedRole && !!selectedLevel && !loading && !isLimitReached;
   const isBehavioralLocked = isFree; // Behavioral доступен только Pro/Premium
 
   return (
@@ -274,7 +282,7 @@ export default function StartScreen() {
               {otherRoles.length > 0 && (
                 <div className="mb-6">
                   <p className="text-sm font-semibold mb-2 uppercase tracking-wide" style={{ color: theme.hint_color }}>
-                    Other Roles
+                    {t('setup.other_roles')}
                   </p>
                   <select
                     value={selectedRole || ''}
@@ -297,6 +305,25 @@ export default function StartScreen() {
                       </option>
                     ))}
                   </select>
+
+                  {/* Skills input */}
+                  <div className="mt-4">
+                    <p className="text-sm font-semibold mb-2 uppercase tracking-wide" style={{ color: theme.hint_color }}>
+                      {t('setup.skills_label')}
+                    </p>
+                    <input
+                      type="text"
+                      value={skills}
+                      onChange={(e) => setSkills(e.target.value)}
+                      placeholder={t('setup.skills_placeholder')}
+                      className="w-full p-4 rounded-2xl text-sm border-2 outline-none"
+                      style={{
+                        backgroundColor: theme.secondary_bg_color,
+                        color: theme.text_color,
+                        borderColor: skills ? theme.button_color : `${theme.hint_color}44`,
+                      }}
+                    />
+                  </div>
                 </div>
               )}
             </>
@@ -471,6 +498,23 @@ export default function StartScreen() {
               t('setup.start_interview')
             )}
           </button>
+
+          {/* Limit reached message */}
+          {isLimitReached && (
+            <div
+              className="p-4 rounded-2xl text-sm text-center space-y-3"
+              style={{ backgroundColor: `${theme.hint_color}15`, color: theme.hint_color }}
+            >
+              <p>{t('setup.limit_reached', { count: maxPerMonth })}</p>
+              <button
+                onClick={() => router.push('/subscriptions')}
+                className="w-full py-3 rounded-xl font-semibold text-sm"
+                style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
+              >
+                {t('setup.upgrade')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>

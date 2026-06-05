@@ -14,6 +14,9 @@ export const translations: Record<string, Record<string, string>> = {
     'nav.history': 'History',
     'nav.settings': 'Settings',
     'nav.subscriptions': 'Subscriptions',
+    'nav.company': 'Company Link',
+    'nav.resume_analysis': 'Resume Analysis',
+    'nav.open_browser': 'opens in browser',
     'sidebar.footer': 'AI Interview Practice v1.0',
 
     /* Dashboard */
@@ -87,6 +90,13 @@ export const translations: Record<string, Record<string, string>> = {
     'setup.failed_parse': 'Could not determine role or level from resume. Please select manually.',
     'setup.failed_upload': 'Failed to analyze resume',
     'setup.start_interview': 'Start Interview',
+
+    /* Skills */
+    'setup.other_roles': 'Other Roles',
+    'setup.skills_label': 'Skills (optional)',
+    'setup.skills_placeholder': 'JS, React',
+    'setup.limit_reached': "You've used all {count} free interviews this month. Upgrade to Pro or Premium for unlimited access.",
+    'setup.upgrade': '⭐ Upgrade',
 
     /* InterviewFlow */
     'interview.load_error': 'Could not load question. Please try again.',
@@ -162,6 +172,30 @@ export const translations: Record<string, Record<string, string>> = {
     'subs.failed_load': 'Failed to load plans.',
     'subs.retry': 'Retry',
 
+    /* Company page */
+    'company.title': 'Company Link',
+    'company.dashboard': 'Dashboard →',
+    'company.description': 'Link a company by pasting a vacancy URL to get AI-generated interview context. Start a practice session tailored to that company.',
+    'company.add_company': 'Add Company',
+    'company.add_header': 'New Company',
+    'company.name_placeholder': 'Company name *',
+    'company.position_placeholder': 'Position *',
+    'company.url_placeholder': 'Vacancy URL *',
+    'company.cancel': 'Cancel',
+    'company.save': 'Save',
+    'company.create_failed': 'Failed to create company.',
+    'company.delete_failed': 'Failed to delete company.',
+    'company.failed_load': 'Failed to load companies.',
+    'company.retry': 'Retry',
+    'company.empty': 'No companies linked yet. Add one above!',
+    'company.start_section': 'Select a linked company and start a tailored interview:',
+    'company.select_company': 'Select a company…',
+    'company.start_interview': '🎯 Start Interview',
+    'company.start_failed': 'Failed to start interview. Try again.',
+    'company.upgrade': '⭐ Upgrade to Premium',
+    'company.premium_title': 'Premium Feature',
+    'company.premium_desc': 'Company Link Interview is available for Premium subscribers only. Upgrade to link real vacancies and practice with tailored questions.',
+
     /* Profile plan features */
     'plan.feature.0': '2 interviews per month',
     'plan.feature.1': 'Text-based feedback',
@@ -192,13 +226,14 @@ export const translations: Record<string, Record<string, string>> = {
     'behavioral.star.result': 'R — Result',
     'behavioral.star.score': 'STAR Score: {score}/10',
     'behavioral.competency': '🎯 Competency',
+    'behavioral.suggest_company': 'Tip: Pick a company to practice behavioral questions specific to their interview style',
+    'technical.header': '💻 Technical — Question {num} of {total}',
     'behavioral.header': '🎭 Behavioral — Question {num} of {total}',
     'behavioral.star_analysis': '📋 STAR Breakdown',
     'behavioral.star_overall': '⭐ STAR Overall: {score}/10',
     'behavioral.competencies': '🎯 Key Competencies',
     'behavioral.mode_technical': 'Technical',
     'behavioral.mode_behavioral': 'Behavioral',
-    'behavioral.suggest_company': 'Tip: Pick a company to practice behavioral questions specific to their interview style',
     'behavioral.premium_only': '🔒 Behavioral interviews are available for Pro and Premium subscribers only. Upgrade your plan to access this mode.',
   },
 
@@ -209,7 +244,10 @@ export const translations: Record<string, Record<string, string>> = {
     'nav.profile': 'Профиль',
     'nav.history': 'История',
     'nav.settings': 'Настройки',
-    'nav.upgrade_plan': 'Улучшить план',
+    'nav.subscriptions': 'Подписки',
+    'nav.company': 'Привязка компании',
+    'nav.resume_analysis': 'Анализ резюме',
+    'nav.open_browser': 'откроется в браузере',
     'sidebar.footer': 'AI Interview Practice v1.0',
 
     /* Dashboard */
@@ -283,6 +321,13 @@ export const translations: Record<string, Record<string, string>> = {
     'setup.failed_parse': 'Не удалось определить роль или уровень из резюме. Выберите вручную.',
     'setup.failed_upload': 'Не удалось проанализировать резюме',
     'setup.start_interview': 'Начать интервью',
+
+    /* Skills */
+    'setup.other_roles': 'Другие роли',
+    'setup.skills_label': 'Навыки (опционально)',
+    'setup.skills_placeholder': 'JS, React',
+    'setup.limit_reached': 'Вы использовали все {count} бесплатных интервью в этом месяце. Перейдите на тариф Pro или Premium для безлимитного доступа.',
+    'setup.upgrade': '⭐ Улучшить тариф',
 
     /* InterviewFlow */
     'interview.load_error': 'Не удалось загрузить вопрос. Попробуйте снова.',
@@ -358,6 +403,30 @@ export const translations: Record<string, Record<string, string>> = {
     'subs.failed_load': 'Не удалось загрузить тарифы.',
     'subs.retry': 'Повторить',
 
+    /* Company page */
+    'company.title': 'Привязка компании',
+    'company.dashboard': 'Главная →',
+    'company.description': 'Привяжите компанию, вставив ссылку на вакансию, чтобы получить AI-контекст для интервью. Начните практику с вопросами под эту компанию.',
+    'company.add_company': 'Добавить компанию',
+    'company.add_header': 'Новая компания',
+    'company.name_placeholder': 'Название компании *',
+    'company.position_placeholder': 'Должность *',
+    'company.url_placeholder': 'Ссылка на вакансию *',
+    'company.cancel': 'Отмена',
+    'company.save': 'Сохранить',
+    'company.create_failed': 'Не удалось создать компанию.',
+    'company.delete_failed': 'Не удалось удалить компанию.',
+    'company.failed_load': 'Не удалось загрузить компании.',
+    'company.retry': 'Повторить',
+    'company.empty': 'Пока нет привязанных компаний. Добавьте первую!',
+    'company.start_section': 'Выберите привязанную компанию и начните интервью:',
+    'company.select_company': 'Выберите компанию…',
+    'company.start_interview': '🎯 Начать интервью',
+    'company.start_failed': 'Не удалось начать интервью. Попробуйте снова.',
+    'company.upgrade': '⭐ Улучшить до Premium',
+    'company.premium_title': 'Функция Premium',
+    'company.premium_desc': 'Company Link Interview доступно только для подписчиков Premium. Улучшите план, чтобы привязывать реальные вакансии и практиковаться с адаптированными вопросами.',
+
     /* Profile plan features */
     'plan.feature.0': '2 интервью в месяц',
     'plan.feature.1': 'Текстовая обратная связь',
@@ -388,6 +457,7 @@ export const translations: Record<string, Record<string, string>> = {
     'behavioral.star.result': 'R — Результат',
     'behavioral.star.score': 'STAR оценка: {score}/10',
     'behavioral.competency': '🎯 Компетенция',
+    'technical.header': '💻 Technical — Вопрос {num} из {total}',
     'behavioral.header': '🎭 Behavioral — Вопрос {num} из {total}',
     'behavioral.star_analysis': '📋 STAR Разбор',
     'behavioral.star_overall': '⭐ STAR Общий: {score}/10',

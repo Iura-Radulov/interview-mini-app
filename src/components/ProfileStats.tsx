@@ -47,7 +47,7 @@ function getPlanFeatures(planName: string, t: (key: string) => string): string[]
 }
 
 export default function ProfileStats() {
-  const { t } = useTranslation();
+  const { t, uiLang } = useTranslation();
   const theme = getTheme();
   const router = useRouter();
   const { user } = useAuth();
@@ -88,7 +88,9 @@ export default function ProfileStats() {
   }
 
   const planName = profile?.plan_name || 'Free';
-  const features = getPlanFeatures(planName, t);
+  const features = profile?.features?.length
+    ? (uiLang === 'ru' && profile.features_ru?.length ? profile.features_ru : profile.features)
+    : [];
   const badge = planBadgeColor(planName);
   const upgradeLabel = getUpgradeLabel(planName, t);
   const upgradeUrl = getUpgradeUrl(planName);
@@ -112,13 +114,18 @@ export default function ProfileStats() {
             ☰
           </button>
           <h1 className="text-xl font-bold">{t('profile.my_profile')}</h1>
-          <button
-            onClick={() => router.push('/')}
-            className="text-sm"
-            style={{ color: theme.button_color }}
-          >
-            {t('profile.dashboard')}
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: theme.hint_color }}>
+              {user?.first_name || ''}
+            </span>
+            <button
+              onClick={() => router.push('/profile')}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-all"
+              style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
+            >
+              {user?.first_name?.[0] || 'U'}
+            </button>
+          </div>
         </div>
 
         {/* User info card */}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import type { SessionSummary, AnswerItem, InterviewSession } from '@/types';
+import type { SessionSummary, AnswerItem, InterviewSession, InterviewMode } from '@/types';
 import { getSession } from '@/lib/api';
 import { getTheme } from '@/lib/telegram';
 import { useTranslation } from '@/lib/i18n';
@@ -28,10 +28,11 @@ function normalizeAnswer(raw: Record<string, unknown>): AnswerItem {
   return {
     question_number: (raw.question_number as number) ?? 0,
     question: {
-      question: (raw.question_text as string) ?? (raw.question as string | undefined) ?? '',
-      category: (raw.category as string) ?? 'Technical',
-      expected_topics: (raw.expected_topics as string[]) ?? [],
-      difficulty: (raw.difficulty as string) ?? '',
+      question_text: (raw.question_text as string) ?? (raw.question as string | undefined) ?? '',
+      question_number: (raw.question_number as number) ?? 0,
+      mode: (raw.mode as InterviewMode) ?? 'technical',
+      competency: (raw.competency as string) ?? undefined,
+      tip: (raw.tip as string) ?? undefined,
     },
     answer: (raw.user_answer as string) ?? (raw.answer as string | undefined) ?? '',
     evaluation: {
@@ -82,7 +83,7 @@ export default function SummaryView() {
             ? parsed.answers.reduce((sum, a) => sum + a.evaluation.score, 0) / parsed.answers.length
             : 0;
         setData({
-          session: { id: sessionId, role: '', experience_level: '', mode: 'technical' as const, started_at: '', completed: true },
+          session: { id: sessionId, role: '', experience_level: '', mode: 'technical' as const, started_at: '', completed: true, total_questions: 0, answered_questions: 0, total_score: null, current_question_number: null },
           summary: parsed.summary,
           answers: parsed.answers,
           overallScore: Math.round(avg * 10) / 10,
@@ -232,7 +233,7 @@ export default function SummaryView() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-medium flex-1">
-                    Q{item.question_number}: {item.question.question}
+                    Q{item.question_number}: {item.question.question_text}
                   </p>
                   <span
                     className="font-bold text-sm shrink-0"

@@ -115,7 +115,7 @@ export default function QuestionCard({ question, onSubmit, onVoiceSubmit, loadin
 
     setAudioLoading(true);
     try {
-      const b64 = await textToSpeech(question.question);
+      const b64 = await textToSpeech(question.question_text);
       if (!b64) return;
 
       const byteChars = atob(b64);
@@ -275,7 +275,7 @@ export default function QuestionCard({ question, onSubmit, onVoiceSubmit, loadin
     onSubmit(answer.trim(), elapsed);
   }
 
-  const diffColor = DIFFICULTY_COLORS[question.difficulty?.toLowerCase()] ?? '#2678b6';
+  const diffColor = DIFFICULTY_COLORS[(question.difficulty?.toLowerCase() ?? '')] ?? '#2678b6';
   const isBehavioral = mode === 'behavioral' || question.mode === 'behavioral';
   const compColor = isBehavioral && question.category
     ? COMPETENCY_COLORS[question.category] ?? '#8b5cf6'
@@ -353,7 +353,7 @@ export default function QuestionCard({ question, onSubmit, onVoiceSubmit, loadin
         className="p-4 rounded-2xl text-base leading-relaxed select-text"
         style={{ backgroundColor: theme.secondary_bg_color }}
       >
-        {question.question}
+        {question.question_text}
       </div>
 
       <div>

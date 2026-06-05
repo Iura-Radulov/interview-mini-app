@@ -1,9 +1,11 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { getTheme } from '@/lib/telegram';
+import { getTheme, getInitData } from '@/lib/telegram';
 import { useAuth } from './TelegramProvider';
 import { useTranslation } from '@/lib/i18n';
+import { getProfile } from '@/lib/api';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   open: boolean;
@@ -14,6 +16,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: string;
+  premiumOnly?: boolean;
 }
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
@@ -22,10 +25,22 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [planName, setPlanName] = useState<string | null>(null);
+
+  useEffect(() => {
+    getProfile()
+      .then((p) => setPlanName(p.plan_name))
+      .catch(() => setPlanName('Free'));
+  }, []);
+
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+  const AUTO_LOGIN_URL = 'https://techinterviewai.com/api/auth/auto-login';
+  const RESUME_ANALYSIS_URL = 'https://techinterviewai.com/dashboard/resumes';
 
   const NAV_ITEMS: NavItem[] = [
     { label: t('nav.dashboard'), href: '/', icon: '🏠' },
     { label: t('nav.start_interview'), href: '/setup', icon: '🎯' },
+    { label: t('nav.company'), href: '/company', icon: '🏢', premiumOnly: true },
     { label: t('nav.profile'), href: '/profile', icon: '👤' },
     { label: t('nav.history'), href: '/history', icon: '📋' },
     { label: t('nav.settings'), href: '/settings', icon: '⚙️' },
@@ -77,7 +92,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
           {/* Nav items */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.filter((item) => !item.premiumOnly || planName === 'Premium').map((item) => {
               const isActive = pathname === item.href;
               return (
                 <button
@@ -101,6 +116,53 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               );
             })}
           </nav>
+
+          {/* External link — Resume Analysis */}
+          <div className="px-3 pb-2">
+            <div className="flex items-center gap-2 px-4 py-1">
+              <div className="flex-1 h-px" style={{ backgroundColor: `${theme.hint_color}33` }} />
+            </div>
+            <button
+              onClick={async () => {
+                onClose();
+                try {
+                  const initData = getInitData();
+                  let url = RESUME_ANALYSIS_URL;
+                  if (initData) {
+                    const res = await fetch(`${BASE_URL}/api/auth/create-token`, {
+                      method: 'POST',
+                      headers: { 'X-Telegram-Init-Data': initData },
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.token) {
+                        url = `${AUTO_LOGIN_URL}?token=${encodeURIComponent(data.token)}&redirect=${encodeURIComponent('/dashboard/resumes')}`;
+                      }
+                    }
+                  }
+                  if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.openLink) {
+                    (window as any).Telegram.WebApp.openLink(url);
+                  } else {
+                    window.open(url, '_blank');
+                  }
+                } catch {
+                  if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.openLink) {
+                    (window as any).Telegram.WebApp.openLink(RESUME_ANALYSIS_URL);
+                  } else {
+                    window.open(RESUME_ANALYSIS_URL, '_blank');
+                  }
+                }
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 active:scale-98"
+              style={{ color: theme.hint_color }}
+            >
+              <span className="text-lg">📄</span>
+              <span>{t('nav.resume_analysis')}</span>
+              <span className="ml-auto flex items-center gap-1 text-[10px] opacity-60">
+                ↗ {t('nav.open_browser')}
+              </span>
+            </button>
+          </div>
 
           {/* Footer */}
           <div className="px-5 py-4 border-t text-xs" style={{ borderColor: `${theme.hint_color}33`, color: theme.hint_color }}>
