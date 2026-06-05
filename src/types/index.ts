@@ -5,7 +5,7 @@ export interface TelegramUser {
   language_code?: string;
 }
 
-export type InterviewMode = 'technical' | 'behavioral';
+export type InterviewMode = 'technical' | 'behavioral' | 'system_design';
 
 export interface StarAnalysis {
   situation_score: number;
@@ -13,17 +13,6 @@ export interface StarAnalysis {
   action_score: number;
   result_score: number;
   situation_feedback?: string;
-  task_feedback?: string;
-  action_feedback?: string;
-  result_feedback?: string;
-}
-
-export interface Question {
-  question: string;
-  category: string;
-  expected_topics: string[];
-  difficulty: string;
-  mode?: InterviewMode;
 }
 
 export interface Evaluation {
@@ -32,8 +21,20 @@ export interface Evaluation {
   strengths: string[];
   improvements: string[];
   tip: string;
-  timing_analysis?: string | null;
   star_analysis?: StarAnalysis;
+  competencies?: string[];
+  timing_analysis?: string;
+}
+
+export interface Question {
+  question_text: string;
+  question_number: number;
+  mode: InterviewMode;
+  competency?: string;
+  tip?: string;
+  category?: string;
+  difficulty?: string;
+  expected_topics?: string[];
 }
 
 export interface InterviewSession {
@@ -43,24 +44,27 @@ export interface InterviewSession {
   mode: InterviewMode;
   started_at: string;
   completed: boolean;
-  total_score?: number;
-}
-
-export interface StarBreakdown {
-  situation: number;
-  task: number;
-  action: number;
-  result: number;
-  overall_star_score: number;
+  total_questions: number;
+  answered_questions: number;
+  total_score: number | null;
+  current_question_number: number | null;
 }
 
 export interface SessionSummary {
-  overall_assessment: string;
+  total_score: number;
   key_strengths: string[];
   key_improvements: string[];
   topics_to_study: string[];
-  overall_rating: string;
-  star_breakdown?: StarBreakdown;
+  question_breakdown: { question: string; score: number; feedback: string }[];
+  overall_rating?: string;
+  overall_assessment?: string;
+  star_breakdown?: {
+    overall_star_score: number;
+    situation: number;
+    task: number;
+    action: number;
+    result: number;
+  };
   competency_scores?: Record<string, number>;
 }
 
@@ -71,6 +75,8 @@ export interface ProfileData {
   plan_name: string;
   max_per_month: number;
   recent_sessions: InterviewSession[];
+  features: string[];
+  features_ru: string[] | null;
 }
 
 export interface ApiError {
@@ -159,4 +165,13 @@ export interface CompanyInfo {
   emoji: string;
   is_free: boolean;
   available: boolean;
+}
+
+export interface UserCompany {
+  id: number;
+  company_name: string;
+  vacancy_url: string;
+  position: string;
+  ai_context: string;
+  created_at: string;
 }

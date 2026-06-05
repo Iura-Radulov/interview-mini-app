@@ -61,7 +61,7 @@ function AnswerBreakdown({ item }: { item: AnswerItem }) {
         onClick={() => setOpen((v) => !v)}
       >
         <span className="text-sm font-medium flex-1 pr-4 line-clamp-2" style={{ color: theme.text_color }}>
-          Q{item.question_number}: {item.question.question}
+                    Q{item.question_number}: {item.question.question_text}
         </span>
         <div className="flex items-center gap-2 shrink-0">
           <span className="font-bold text-base" style={{ color }}>
@@ -103,7 +103,7 @@ export default function SummaryCard({ summary, answers, overallScore }: Props) {
     average: '#f59e0b',
     poor: '#ef4444',
   };
-  const ratingColor = ratingColors[summary.overall_rating?.toLowerCase()] ?? theme.button_color;
+  const ratingColor = ratingColors[(summary.overall_rating?.toLowerCase() ?? '')] ?? theme.button_color;
 
   return (
     <div

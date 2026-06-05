@@ -24,9 +24,12 @@ function planColor(name: string): { bg: string; text: string; border: string } {
 function parseFeatures(featuresStr: string): string[] {
   try {
     const parsed = JSON.parse(featuresStr);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+    if (Array.isArray(parsed)) return parsed;
+    if (typeof parsed === 'string') return parsed.split(',').map(s => s.trim()).filter(Boolean);
     return [];
+  } catch {
+    // Fallback: comma-separated string
+    return featuresStr.split(',').map(s => s.trim()).filter(Boolean);
   }
 }
 
@@ -127,13 +130,18 @@ export default function SubscriptionsPage() {
             ☰
           </button>
           <h1 className="text-xl font-bold">{t('subs.title')}</h1>
-          <button
-            onClick={() => router.push('/')}
-            className="text-sm"
-            style={{ color: theme.button_color }}
-          >
-            {t('subs.dashboard')}
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: theme.hint_color }}>
+              {user?.first_name || ''}
+            </span>
+            <button
+              onClick={() => router.push('/profile')}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-all"
+              style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
+            >
+              {user?.first_name?.[0] || 'U'}
+            </button>
+          </div>
         </div>
 
         {/* Current plan card */}

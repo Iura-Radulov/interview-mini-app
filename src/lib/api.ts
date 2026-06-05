@@ -11,6 +11,7 @@ import type {
   ResumeAnalysis,
   TariffPlanInfo,
   CompanyInfo,
+  UserCompany,
 } from '@/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';  // empty = same origin (rewritten via next.config.ts)
@@ -108,12 +109,20 @@ export async function startInterview(
   role: string,
   level: string,
   companyId?: string,
-  mode: string = 'technical'
+  mode: string = 'technical',
+  skills?: string,
+  userCompanyId?: number,
 ): Promise<StartInterviewResponse> {
   try {
-    const body: Record<string, string> = { role, level, mode };
+    const body: Record<string, string | number> = { role, level, mode };
     if (companyId && companyId !== 'general') {
       body.company_id = companyId;
+    }
+    if (skills && skills.trim()) {
+      body.skills = skills.trim();
+    }
+    if (userCompanyId) {
+      body.user_company_id = userCompanyId;
     }
     const res = await fetchWithRetry(`${BASE_URL}/api/interview/start`, {
       method: 'POST',
@@ -164,10 +173,19 @@ export async function voiceAnswer(
       formData.append('time_taken_seconds', String(timeTakenSeconds));
     }
 
-    const res = await fetchWithRetry(`${BASE_URL}/api/interview/voice-answer`, {
+    const headers: Record<string, string> = {};
+    if (initData) {
+      headers['X-Telegram-Init-Data'] = initData;
+    }
+    if (!initData && currentUserId) {
+      headers['X-User-ID'] = String(currentUserId);
+    }
+
+    const res = await fetchWithTimeout(`${BASE_URL}/api/interview/voice-answer`, {
       method: 'POST',
       body: formData,
-    });
+      headers,
+    }, 45000);  // 45s for Whisper transcription + AI evaluation
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.detail || `Voice answer failed (${res.status})`);
@@ -235,7 +253,7 @@ export async function getCompanies(): Promise<{ companies: CompanyInfo[] }> {
 
 export async function getNextQuestion(
   sessionId: number
-): Promise<{ question: Question; question_number: number }> {
+): Promise<{ question: Question; question_number: number; mode?: string }> {
   try {
     const res = await fetchWithRetry(
       `${BASE_URL}/api/interview/${sessionId}/next-question`,
@@ -334,7 +352,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string | null> {
       method: 'POST',
       body: formData,
       headers,
-    });
+    }, 30000);  // 30s for Whisper transcription
 
     if (!res.ok) return null;
     const data = await res.json();
@@ -409,6 +427,72 @@ export async function getPlans(): Promise<TariffPlanInfo[]> {
 
   if (!res.ok) throw new Error('Failed to fetch plans');
   return res.json();
+}
+
+// ── User Companies ──────────────────────────────────────────────────────────
+
+export async function getUserCompanies(): Promise<{ companies: UserCompany[] }> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/user-companies`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) throw new Error('Failed to fetch companies');
+  return res.json();
+}
+
+export async function createUserCompany(
+  telegramId: number,
+  companyName: string,
+  vacancyUrl: string,
+  position: string,
+): Promise<UserCompany> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/user-companies/create`, {
+    method: 'POST',
+    body: JSON.stringify({
+      telegram_id: telegramId,
+      company_name: companyName,
+      vacancy_url: vacancyUrl,
+      position,
+    }),
+    headers,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create company');
+  }
+  return res.json();
+}
+
+export async function deleteUserCompany(companyId: number): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/user-companies/${companyId}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to delete company');
+  }
 }
 
 // ── Telegram Stars Invoice ─────────────────────────────────────────────────────

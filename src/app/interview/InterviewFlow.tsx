@@ -77,6 +77,10 @@ export default function InterviewFlow() {
       .then((res) => {
         setQuestion(res.question);
         setQuestionNumber(res.question_number);
+        if (res.mode && (res.mode === 'technical' || res.mode === 'behavioral' || res.mode === 'system_design')) {
+          setMode(res.mode);
+          sessionStorage.setItem(`interview_${sessionId}_mode`, res.mode);
+        }
         sessionStorage.setItem(
           `interview_${sessionId}_q${res.question_number}`,
           JSON.stringify(res.question)
@@ -94,7 +98,7 @@ export default function InterviewFlow() {
       setLoading(true);
       setError(null);
       try {
-        const result = await submitAnswer(sessionId, answer, question.question, timeTakenSeconds);
+        const result = await submitAnswer(sessionId, answer, question.question_text, timeTakenSeconds);
         const answerItem: AnswerItem = {
           question,
           answer,
@@ -132,7 +136,7 @@ export default function InterviewFlow() {
       setLoading(true);
       setError(null);
       try {
-        const result = await voiceAnswer(sessionId, question.question, audioBlob, timeTakenSeconds);
+        const result = await voiceAnswer(sessionId, question.question_text, audioBlob, timeTakenSeconds);
         const transcribed = result.transcribed || '…';
         const answerItem: AnswerItem = {
           question,

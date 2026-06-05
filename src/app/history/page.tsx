@@ -94,13 +94,18 @@ export default function HistoryPage() {
             ☰
           </button>
           <h1 className="text-xl font-bold">{t('history.title')}</h1>
-          <button
-            onClick={() => router.push('/')}
-            className="text-sm"
-            style={{ color: theme.button_color }}
-          >
-            {t('history.dashboard')}
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: theme.hint_color }}>
+              {user?.first_name || ''}
+            </span>
+            <button
+              onClick={() => router.push('/profile')}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-all"
+              style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
+            >
+              {user?.first_name?.[0] || 'U'}
+            </button>
+          </div>
         </div>
 
         {/* Stats summary */}
@@ -207,6 +212,17 @@ function SessionCard({
           >
             {session.experience_level}
           </span>
+          {session.mode && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
+              style={{
+                backgroundColor: session.mode === 'behavioral' ? '#f59e0b20' : '#3b82f620',
+                color: session.mode === 'behavioral' ? '#f59e0b' : '#3b82f6',
+              }}
+            >
+              {session.mode === 'behavioral' ? '💬' : '🔧'}
+            </span>
+          )}
         </div>
         <p className="text-xs" style={{ color: theme.hint_color }}>
           {formatDate(session.started_at)}
