@@ -98,7 +98,8 @@ export default function InterviewFlow() {
       setLoading(true);
       setError(null);
       try {
-        const result = await submitAnswer(sessionId, answer, question.question_text, timeTakenSeconds);
+        const resumeId = sessionId ? parseInt(sessionStorage.getItem(`interview_${sessionId}_resume_id`) || '') || undefined : undefined;
+        const result = await submitAnswer(sessionId, answer, question.question_text, timeTakenSeconds, resumeId);
         const answerItem: AnswerItem = {
           question,
           answer,

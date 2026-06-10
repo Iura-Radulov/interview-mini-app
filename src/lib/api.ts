@@ -112,6 +112,7 @@ export async function startInterview(
   mode: string = 'technical',
   skills?: string,
   userCompanyId?: number,
+  resumeId?: number,
 ): Promise<StartInterviewResponse> {
   try {
     const body: Record<string, string | number> = { role, level, mode };
@@ -123,6 +124,9 @@ export async function startInterview(
     }
     if (userCompanyId) {
       body.user_company_id = userCompanyId;
+    }
+    if (resumeId) {
+      body.resume_id = resumeId;
     }
     const res = await fetchWithRetry(`${BASE_URL}/api/interview/start`, {
       method: 'POST',
@@ -141,10 +145,12 @@ export async function submitAnswer(
   answer: string,
   questionText?: string,
   timeTakenSeconds?: number,
+  resumeId?: number,
 ): Promise<AnswerResponse> {
   try {
     const body: Record<string, any> = { session_id: sessionId, answer, question_text: questionText };
     if (timeTakenSeconds !== undefined) body.time_taken_seconds = timeTakenSeconds;
+    if (resumeId) body.resume_id = resumeId;
     const res = await fetchWithRetry(`${BASE_URL}/api/interview/answer`, {
       method: 'POST',
       body: JSON.stringify(body),
@@ -303,6 +309,43 @@ export async function uploadResume(file: File): Promise<ResumeAnalysis> {
     if (res.status === 400) {
       const errBody = await res.json().catch(() => ({}));
       throw new Error(errBody.detail || 'Could not parse this PDF. It may be a scanned/image-only document.');
+    }
+    if (!res.ok) handleApiError(res.status);
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error('Connection lost. Check your internet.');
+  }
+}
+
+// ── Text-to-Speech ──────────────────────────────────────────────────────────
+
+export async function fetchGapAnalysis(
+  targetRole: string,
+  targetLevel: string,
+  resumeId?: number,
+  skills?: string,
+  companyId?: string,
+  userCompanyId?: number,
+): Promise<import('@/types').GapAnalysis> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (initData) headers['X-Telegram-Init-Data'] = initData;
+    if (!initData && currentUserId) headers['X-User-ID'] = String(currentUserId);
+
+    const body: Record<string, any> = { target_role: targetRole, target_level: targetLevel };
+    if (resumeId) body.resume_id = resumeId;
+    if (skills?.trim()) body.skills = skills.trim();
+    if (companyId && companyId !== 'general') body.company_id = companyId;
+    if (userCompanyId) body.user_company_id = userCompanyId;
+
+    const res = await fetchWithRetry(`${BASE_URL}/api/interview/gap-analysis`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers,
+    });
+    if (res.status === 404) {
+      throw new Error('Resume not found. Please upload your CV again.');
     }
     if (!res.ok) handleApiError(res.status);
     return res.json();
@@ -514,5 +557,116 @@ export async function createStarsInvoice(planName: string): Promise<{ invoice_ur
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || 'Failed to create invoice');
   }
+  return res.json();
+}
+
+
+// ── Study Plan API ────────────────────────────────────────────────────────────
+
+export async function getSessionsForPlan(
+  mode?: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<{ sessions: import('@/types').StudyPlanSessionMeta[] }> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const params = new URLSearchParams();
+  if (mode) params.set('mode', mode);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  const qs = params.toString();
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/study/sessions-for-plan${qs ? `?${qs}` : ''}`, {
+    method: 'GET',
+    headers,
+  });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+export async function generateStudyPlan(
+  mode?: string,
+  dateFrom?: string,
+  dateTo?: string,
+  durationDays: number = 7,
+  language: string = 'en',
+): Promise<{ ok: boolean; plan: import('@/types').StudyPlanSummary; message: string }> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const body: Record<string, any> = { duration_days: durationDays, language };
+  if (mode) body.mode = mode;
+  if (dateFrom) body.date_from = dateFrom;
+  if (dateTo) body.date_to = dateTo;
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/study/plans/generate`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers,
+  });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+export async function getStudyPlans(): Promise<{ plans: import('@/types').StudyPlanSummary[] }> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/study/plans`, { method: 'GET', headers });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+export async function getStudyPlanDetail(planId: number): Promise<{ plan: import('@/types').StudyPlanDetail }> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/study/plans/${planId}`, { method: 'GET', headers });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+export async function updateStudyPlanStatus(planId: number, status: string): Promise<{ ok: boolean; status: string }> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/study/plans/${planId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+    headers,
+  });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+export async function toggleStudyPlanDay(planId: number, dayId: number): Promise<{ ok: boolean }> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/study/plans/${planId}/toggle-day`, {
+    method: 'POST',
+    body: JSON.stringify({ day_id: dayId }),
+    headers,
+  });
+  if (!res.ok) handleApiError(res.status);
   return res.json();
 }

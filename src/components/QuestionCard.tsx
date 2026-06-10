@@ -15,7 +15,7 @@ interface Props {
   mode?: InterviewMode;
 }
 
-const MAX_CHARS = 2000;
+const MAX_CHARS = 4000;
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: '#22c55e',
