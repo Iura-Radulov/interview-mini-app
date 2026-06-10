@@ -4,9 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTheme } from '@/lib/telegram';
 import { useAuth } from '@/components/TelegramProvider';
-import { startInterview, uploadResume, getRoles, getCompanies, getProfile } from '@/lib/api';
+import { startInterview, uploadResume, getRoles, getCompanies, getProfile, fetchGapAnalysis } from '@/lib/api';
 import { useTranslation } from '@/lib/i18n';
-import type { ResumeAnalysis, RoleInfo, CompanyInfo, InterviewMode } from '@/types';
+import type { ResumeAnalysis, GapAnalysis, RoleInfo, CompanyInfo, InterviewMode } from '@/types';
 import LoadingSpinner from './LoadingSpinner';
 import Sidebar from './Sidebar';
 
@@ -63,6 +63,8 @@ export default function StartScreen() {
 
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeAnalysis, setResumeAnalysis] = useState<ResumeAnalysis | null>(null);
+  const [gapAnalysis, setGapAnalysis] = useState<GapAnalysis | null>(null);
+  const [gapLoading, setGapLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [planName, setPlanName] = useState<string>('Free');
   const [totalCompleted, setTotalCompleted] = useState<number>(0);
@@ -104,11 +106,11 @@ export default function StartScreen() {
     return r.emoji ? `${r.emoji} ${name}` : name;
   };
 
-  async function startInterviewWith(role: string, level: string, companyId?: string) {
+  async function startInterviewWith(role: string, level: string, companyId?: string, resumeId?: number) {
     setLoading(true);
     setError(null);
     try {
-      const result = await startInterview(role, level, companyId, mode, skills || undefined);
+      const result = await startInterview(role, level, companyId, mode, skills || undefined, undefined, resumeId);
       sessionStorage.setItem(
         `interview_${result.session_id}_q1`,
         JSON.stringify(result.question)
@@ -117,6 +119,9 @@ export default function StartScreen() {
         `interview_${result.session_id}_mode`,
         result.mode
       );
+      if (resumeId) {
+        sessionStorage.setItem(`interview_${result.session_id}_resume_id`, String(resumeId));
+      }
       router.push(`/interview?session=${result.session_id}&q=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('setup.failed_start'));
@@ -139,7 +144,7 @@ export default function StartScreen() {
     }
     setSelectedRole(role);
     setSelectedLevel(level);
-    await startInterviewWith(role, level);
+    await startInterviewWith(role, level, undefined, resumeAnalysis.id);
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -152,6 +157,16 @@ export default function StartScreen() {
     try {
       const analysis = await uploadResume(file);
       setResumeAnalysis(analysis);
+      // Auto-fetch gap analysis if we already have role/level selected
+      const role = analysis.suggested_role || selectedRole;
+      const level = analysis.suggested_level || selectedLevel;
+      if (role && level) {
+        setGapLoading(true);
+        fetchGapAnalysis(role, level, analysis.id, skills || undefined, selectedCompany)
+          .then(setGapAnalysis)
+          .catch(() => {}) // Non-critical
+          .finally(() => setGapLoading(false));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('setup.failed_upload'));
     } finally {
@@ -423,23 +438,92 @@ export default function StartScreen() {
             )}
           </button>
 
-          {/* Resume analysis */}
+          {/* Resume + CV Fit Analysis (combined) */}
           {resumeAnalysis && (
-            <div className="mt-4 mb-6 p-4 rounded-2xl" style={{ backgroundColor: theme.secondary_bg_color }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold">{t('setup.resume_analysis')}</span>
-                <span className="text-xs" style={{ color: theme.hint_color }}>
-                  {t('setup.confidence', { pct: Math.round(resumeAnalysis.confidence * 100) })}
-                </span>
+            <div className="mt-4 mb-6 p-4 rounded-2xl"
+              style={{ backgroundColor: `${theme.button_color}08`, border: `1px solid ${theme.button_color}30` }}>
+              {/* Header */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">📊</span>
+                <span className="font-semibold text-sm">{t('setup.resume_analysis')}</span>
+                {gapAnalysis && (
+                  <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: gapAnalysis.overall_fit === 'Excellent' || gapAnalysis.overall_fit === 'Good'
+                        ? '#22c55e30' : gapAnalysis.overall_fit === 'Moderate' ? '#f59e0b30' : '#ef444430',
+                      color: gapAnalysis.overall_fit === 'Excellent' || gapAnalysis.overall_fit === 'Good'
+                        ? '#22c55e' : gapAnalysis.overall_fit === 'Moderate' ? '#f59e0b' : '#ef4444',
+                    }}>
+                    {gapAnalysis.overall_fit}
+                  </span>
+                )}
               </div>
+
+              {/* Resume info */}
               <div className="space-y-1 text-sm mb-3">
                 <p><span style={{ color: theme.hint_color }}>{t('setup.role_label')}</span> <strong>{resumeAnalysis.suggested_role || '—'}</strong></p>
                 <p><span style={{ color: theme.hint_color }}>{t('setup.level_label')}</span> <strong>{resumeAnalysis.suggested_level || '—'}</strong></p>
                 {resumeAnalysis.tech_stack.length > 0 && (
                   <p><span style={{ color: theme.hint_color }}>{t('setup.stack_label')}</span> {resumeAnalysis.tech_stack.join(', ')}</p>
                 )}
+                <p className="text-xs" style={{ color: theme.hint_color }}>
+                  {t('setup.confidence', { pct: Math.round(resumeAnalysis.confidence * 100) })}
+                </p>
               </div>
-              <div className="flex gap-2">
+
+              {/* Gap analysis loading */}
+              {gapLoading && (
+                <div className="flex items-center gap-2 py-2">
+                  <LoadingSpinner size="sm" color={theme.hint_color} />
+                  <span className="text-xs" style={{ color: theme.hint_color }}>Analyzing your profile vs target...</span>
+                </div>
+              )}
+
+              {/* Gap analysis content */}
+              {gapAnalysis && (
+                <>
+                  {gapAnalysis.profile_summary && (
+                    <p className="text-xs mb-3" style={{ color: theme.hint_color }}>
+                      {gapAnalysis.profile_summary}
+                    </p>
+                  )}
+                  {gapAnalysis.strengths.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-xs font-medium text-green-500 mb-1">✅ Strengths</p>
+                      <ul className="text-xs space-y-0.5" style={{ color: theme.hint_color }}>
+                        {gapAnalysis.strengths.map((s, i) => <li key={i}>• {s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {gapAnalysis.gaps.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-xs font-medium text-orange-500 mb-1">⚠️ Areas to Watch</p>
+                      <ul className="text-xs space-y-0.5" style={{ color: theme.hint_color }}>
+                        {gapAnalysis.gaps.map((g, i) => <li key={i}>• {g}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {gapAnalysis.focus_areas.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-xs font-medium mb-1" style={{ color: theme.text_color }}>🎯 Focus During Interview</p>
+                      <ul className="text-xs space-y-0.5" style={{ color: theme.hint_color }}>
+                        {gapAnalysis.focus_areas.map((f, i) => <li key={i}>• {f}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {gapAnalysis.preparation_tip && (
+                    <div className="mt-2 p-2 rounded-lg text-xs" style={{
+                      backgroundColor: `${theme.button_color}15`,
+                      color: theme.button_color,
+                    }}>
+                      💡 {gapAnalysis.preparation_tip}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-2 mt-4">
                 <button
                   onClick={handleStartFromResume}
                   disabled={loading}
@@ -453,7 +537,10 @@ export default function StartScreen() {
                   )}
                 </button>
                 <button
-                  onClick={() => setResumeAnalysis(null)}
+                  onClick={() => {
+                    setResumeAnalysis(null);
+                    setGapAnalysis(null);
+                  }}
                   disabled={loading}
                   className="px-4 py-2.5 rounded-xl text-sm"
                   style={{ backgroundColor: `${theme.hint_color}20`, color: theme.text_color }}

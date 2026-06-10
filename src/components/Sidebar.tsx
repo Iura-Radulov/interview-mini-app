@@ -40,6 +40,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const NAV_ITEMS: NavItem[] = [
     { label: t('nav.dashboard'), href: '/', icon: '🏠' },
     { label: t('nav.start_interview'), href: '/setup', icon: '🎯' },
+    { label: t('study_plan.nav'), href: '/study-plan', icon: '📚' },
     { label: t('nav.company'), href: '/company', icon: '🏢', premiumOnly: true },
     { label: t('nav.profile'), href: '/profile', icon: '👤' },
     { label: t('nav.history'), href: '/history', icon: '📋' },
@@ -92,7 +93,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
           {/* Nav items */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {NAV_ITEMS.filter((item) => !item.premiumOnly || planName === 'Premium').map((item) => {
+            {NAV_ITEMS.filter((item) => {
+              if (item.href === '/study-plan') return planName !== 'Free';
+              if (item.href === '/company') return planName === 'Premium';
+              return !item.premiumOnly || planName === 'Premium';
+            }).map((item) => {
               const isActive = pathname === item.href;
               return (
                 <button

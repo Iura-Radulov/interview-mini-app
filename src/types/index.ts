@@ -136,6 +136,7 @@ export interface RolesResponse {
 }
 
 export interface ResumeAnalysis {
+  id?: number;
   target_role: string | null;
   seniority_level: string | null;
   suggested_role: string | null;
@@ -145,6 +146,16 @@ export interface ResumeAnalysis {
   key_skills: string[];
   confidence: number;
   raw_title: string | null;
+}
+
+export interface GapAnalysis {
+  profile_summary: string;
+  overall_fit: 'Excellent' | 'Good' | 'Moderate' | 'Weak';
+  strengths: string[];
+  gaps: string[];
+  focus_areas: string[];
+  expected_difficulty: 'Expected' | 'Harder' | 'Easier';
+  preparation_tip: string;
 }
 
 export interface TariffPlanInfo {
@@ -174,4 +185,51 @@ export interface UserCompany {
   position: string;
   ai_context: string;
   created_at: string;
+}
+
+
+// ── Study Plan ──────────────────────────────────────────────────────────────────
+
+export interface StudyPlanSessionMeta {
+  id: number;
+  role: string;
+  mode: string;
+  started_at: string | null;
+  completed: boolean;
+  total_score: number | null;
+  experience_level: string;
+}
+
+export interface StudyPlanDay {
+  id: number;
+  day_number: number;
+  title: string;
+  description: string;
+  resources: { title: string; url: string; type: string }[];
+  estimated_minutes: number | null;
+  is_completed: boolean;
+  completed_at: string | null;
+}
+
+export interface StudyPlanSummary {
+  id: number;
+  title: string;
+  description: string;
+  focus_areas: string[];
+  duration_days: number;
+  status: 'active' | 'paused' | 'completed';
+  progress_percent: number;
+  source_type: string;
+  source_params: Record<string, any>;
+  language: string;
+  created_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  total_days: number;
+  completed_days: number;
+}
+
+export interface StudyPlanDetail extends StudyPlanSummary {
+  days: StudyPlanDay[];
+  session_ids: number[];
 }
