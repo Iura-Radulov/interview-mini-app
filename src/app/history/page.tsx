@@ -4,11 +4,21 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTheme } from '@/lib/telegram';
 import { useAuth } from '@/components/TelegramProvider';
-import { getProfile } from '@/lib/api';
+import { getProfile, getSystemDesignHistory } from '@/lib/api';
 import { useTranslation } from '@/lib/i18n';
 import type { ProfileData, InterviewSession } from '@/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import Sidebar from '@/components/Sidebar';
+
+interface SdSession {
+  id: number;
+  problem: string;
+  level: string;
+  completed: boolean;
+  total_score: number | null;
+  started_at: string | null;
+  current_step: number;
+}
 
 function scoreColor(score: number): string {
   if (score >= 7) return '#22c55e';
@@ -36,12 +46,19 @@ export default function HistoryPage() {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [sdSessions, setSdSessions] = useState<SdSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getProfile()
-      .then(setProfile)
+    Promise.all([
+      getProfile(),
+      getSystemDesignHistory().catch(() => ({ sessions: [] })),
+    ])
+      .then(([p, sd]) => {
+        setProfile(p);
+        setSdSessions(sd.sessions);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : t('history.failed_load')))
       .finally(() => setLoading(false));
   }, []);
@@ -60,7 +77,7 @@ export default function HistoryPage() {
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <p className="text-sm text-center" style={{ color: '#ef4444' }}>{error}</p>
         <button
-          onClick={() => { setLoading(true); setError(null); getProfile().then(setProfile).catch(err => setError(err.message)).finally(() => setLoading(false)); }}
+          onClick={() => { setLoading(true); setError(null); Promise.all([getProfile(), getSystemDesignHistory().catch(() => ({ sessions: [] }))]).then(([p, sd]) => { setProfile(p); setSdSessions(sd.sessions); }).catch(err => setError(err.message)).finally(() => setLoading(false)); }}
           className="px-6 py-3 rounded-2xl font-medium text-sm"
           style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
         >
@@ -141,37 +158,105 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Sessions list */}
-        <div className="flex-1">
+        {/* Regular interviews section */}
+        <div className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: theme.hint_color }}>
             {t('history.all_sessions')}
           </p>
 
           {sessions.length === 0 ? (
             <div
-              className="p-8 rounded-2xl text-center"
+              className="p-6 rounded-2xl text-center mb-4"
               style={{ backgroundColor: theme.secondary_bg_color }}
             >
-              <p className="text-4xl mb-3">🎯</p>
+              <p className="text-3xl mb-2">🎯</p>
               <p className="text-sm" style={{ color: theme.hint_color }}>
                 {t('history.empty_text')}
               </p>
-              <p className="text-xs mt-1" style={{ color: theme.hint_color }}>
-                {t('history.empty_hint')}
-              </p>
-              <button
-                onClick={() => router.push('/setup')}
-                className="mt-4 px-6 py-3 rounded-xl font-semibold text-sm"
-                style={{ backgroundColor: theme.button_color, color: theme.button_text_color }}
-              >
-                {t('history.start_interview')}
-              </button>
             </div>
           ) : (
-            <div className="space-y-2 pb-4">
+            <div className="space-y-2 pb-2">
               {sessions.map((session, idx) => (
                 <SessionCard key={session?.id ?? `session-${idx}`} session={session} theme={theme} router={router} />
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* System Design interviews section */}
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: theme.hint_color }}>
+            🏗️ {t('sd.title')}
+          </p>
+
+          {sdSessions.length === 0 ? (
+            <div
+              className="p-6 rounded-2xl text-center"
+              style={{ backgroundColor: theme.secondary_bg_color }}
+            >
+              <p className="text-3xl mb-2">🏗️</p>
+              <p className="text-sm" style={{ color: theme.hint_color }}>
+                {t('history.sd_empty')}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2 pb-2">
+              {sdSessions.map((sd) => {
+                const color = sd.total_score != null ? scoreColor(sd.total_score) : theme.hint_color;
+                return (
+                  <button
+                    key={sd.id}
+                    onClick={() => {
+                      if (sd.completed) {
+                        router.push(`/system-design/summary?session=${sd.id}`);
+                      } else {
+                        router.push(`/system-design/interview?session=${sd.id}`);
+                      }
+                    }}
+                    className="w-full flex items-center justify-between p-4 rounded-2xl text-left transition-all active:scale-98"
+                    style={{ backgroundColor: theme.secondary_bg_color }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-semibold truncate" style={{ color: theme.text_color }}>
+                          {sd.problem}
+                        </span>
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
+                          style={{
+                            backgroundColor: `${theme.hint_color}20`,
+                            color: theme.hint_color,
+                          }}
+                        >
+                          {sd.level}
+                        </span>
+                      </div>
+                      <p className="text-xs" style={{ color: theme.hint_color }}>
+                        {sd.started_at ? formatDate(sd.started_at) : ''}
+                        {!sd.completed && (
+                          <span className="ml-2" style={{ color: '#f59e0b' }}>
+                            {t('history.in_progress')}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {sd.total_score != null && (
+                      <div className="flex items-center gap-1 ml-3">
+                        <span className="font-bold text-base" style={{ color }}>
+                          {sd.total_score.toFixed(1)}
+                        </span>
+                        <span className="text-[10px]" style={{ color: theme.hint_color }}>/10</span>
+                      </div>
+                    )}
+                    {!sd.completed && (
+                      <div className="ml-3 px-2 py-1 rounded-lg text-[10px] font-semibold"
+                        style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
+                        {t('history.resume')}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
