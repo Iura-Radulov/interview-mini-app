@@ -670,3 +670,134 @@ export async function toggleStudyPlanDay(planId: number, dayId: number): Promise
   if (!res.ok) handleApiError(res.status);
   return res.json();
 }
+
+
+// ── Guided System Design API ────────────────────────────────────────────
+
+
+export async function startSystemDesign(
+  problem: string,
+  level: string,
+  company: string = 'general',
+): Promise<{
+  session_id: number;
+  step: number;
+  step_name: string;
+  prompt: string;
+  hints: string[];
+  total_steps: number;
+}> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/system-design/start`, {
+    method: 'POST',
+    body: JSON.stringify({ problem, level, company }),
+    headers,
+  });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+export async function submitSystemDesignStep(
+  sessionId: number,
+  answer: string,
+): Promise<{
+  done: boolean;
+  step: number;
+  step_name?: string;
+  prompt?: string;
+  hints?: string[];
+  score?: number;
+  feedback?: string;
+  evaluation?: Record<string, any> | null;
+}> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/system-design/step`, {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, answer }),
+    headers,
+  });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+
+export async function getSystemDesignHistory(): Promise<{
+  sessions: Array<{
+    id: number;
+    problem: string;
+    level: string;
+    completed: boolean;
+    total_score: number | null;
+    started_at: string | null;
+    current_step: number;
+  }>;
+}> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/system-design/history`, { headers });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}
+
+export interface SystemDesignSessionDetail {
+  id: number;
+  problem: string;
+  level: string;
+  company: string;
+  completed: boolean;
+  current_step: number;
+  total_steps: number;
+  total_score: number | null;
+  step_context: Array<{
+    step: number;
+    step_name: string;
+    prompt: string;
+    answer: string;
+    score: number;
+    feedback: string;
+  }>;
+  step_scores: Array<{ step: number; score: number }>;
+  summary: SdEvalSummary | null;
+  started_at: string | null;
+}
+
+export interface SdEvalSummary {
+  requirements_clarity: number;
+  estimations: number;
+  data_model: number;
+  api_design: number;
+  architecture: number;
+  deep_dive: number;
+  trade_offs: number;
+  overall: number;
+  assessment: string;
+  strengths: string[];
+  improvements: string[];
+  topics_to_study: string[];
+}
+
+export async function getSystemDesignSession(sessionId: number): Promise<SystemDesignSessionDetail> {
+  const headers: Record<string, string> = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  if (!initData && currentUserId) {
+    headers['X-User-ID'] = String(currentUserId);
+  }
+
+  const res = await fetchWithRetry(`${BASE_URL}/api/system-design/session/${sessionId}`, { headers });
+  if (!res.ok) handleApiError(res.status);
+  return res.json();
+}

@@ -41,6 +41,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     { label: t('nav.dashboard'), href: '/', icon: '🏠' },
     { label: t('nav.start_interview'), href: '/setup', icon: '🎯' },
     { label: t('study_plan.nav'), href: '/study-plan', icon: '📚' },
+    { label: t('nav.system_design'), href: '/system-design', icon: '🏗️' },
     { label: t('nav.company'), href: '/company', icon: '🏢', premiumOnly: true },
     { label: t('nav.profile'), href: '/profile', icon: '👤' },
     { label: t('nav.history'), href: '/history', icon: '📋' },

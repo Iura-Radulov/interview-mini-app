@@ -350,10 +350,21 @@ export default function QuestionCard({ question, onSubmit, onVoiceSubmit, loadin
       </div>
 
       <div
-        className="p-4 rounded-2xl text-base leading-relaxed select-text"
+        className="p-4 rounded-2xl text-base leading-relaxed select-text relative group"
         style={{ backgroundColor: theme.secondary_bg_color }}
       >
-        {question.question_text}
+        <div className="pr-8">{question.question_text}</div>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(question.question_text).catch(() => {});
+          }}
+          className="absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center text-xs opacity-40 hover:opacity-100 transition-opacity"
+          style={{ backgroundColor: theme.button_color + '20', color: theme.button_color }}
+          title="Copy question"
+          aria-label="Copy question text"
+        >
+          📋
+        </button>
       </div>
 
       <div>
