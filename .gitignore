@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 # stale build snapshots (were tracked; 700+/1500+ files of build output)
 .next_old/
+.next_backup_*/
+.next_prev_*/
+*.bak-*
+*.bundle
